@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#06080e">
+  <title>NovaTrade Pro — Global Markets & Live Trading</title>
+
+  <!-- Google Fonts & Lightweight Charts Library -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            dark: {
+              bg: '#06080e',
+              panel: '#0d121d',
+              card: '#131b2c',
+              border: '#1e293b',
+              hover: '#1a253a'
+            },
+            cyber: {
+              gold: '#f59e0b',
+              goldGlow: 'rgba(245, 158, 11, 0.25)',
+              green: '#10b981',
+              greenGlow: 'rgba(16, 185, 129, 0.25)',
+              red: '#ef4444',
+              redGlow: 'rgba(239, 68, 68, 0.25)',
+              blue: '#3b82f6'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #06080e;
+      color: #f1f5f9;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow-x: hidden;
+    }
+
+    .glass-panel {
+      background: linear-gradient(135deg, rgba(19, 27, 44, 0.75) 0%, rgba(13, 18, 29, 0.85) 100%);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    .glass-panel-glow {
+      position: relative;
+    }
+    .glass-panel-glow::before {
+      content: '';
+      position: absolute;
+      top: -1px; left: -1px; right: -1px; bottom: -1px;
+      border-radius: inherit;
+      background: linear-gradient(90deg, rgba(245, 158, 11, 0.15), transparent 50%, rgba(16, 185, 129, 0.15));
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .glow-gold-text { text-shadow: 0 0 12px rgba(245, 158, 11, 0.4); }
+    .glow-green-text { text-shadow: 0 0 12px rgba(16, 185, 129, 0.5); }
+    .glow-red-text { text-shadow: 0 0 12px rgba(239, 68, 68, 0.5); }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background-color: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 10px #10b981;
+      animation: pulse-live 1.5s infinite alternate;
+    }
+
+    @keyframes pulse-live {
+      0% { transform: scale(0.8); opacity: 0.6; box-shadow: 0 0 4px #10b981; }
+      100% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 14px #10b981; }
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #06080e; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+    .flash-up { animation: flashGreen 0.6s ease-out; }
+    .flash-down { animation: flashRed 0.6s ease-out; }
+
+    @keyframes flashGreen {
+      0% { background-color: rgba(16, 185, 129, 0.3); }
+      100% { background-color: transparent; }
+    }
+    @keyframes flashRed {
+      0% { background-color: rgba(239, 68, 68, 0.3); }
+      100% { background-color: transparent; }
+    }
+
+    input[type=range] { accent-color: #f59e0b; }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+    body { width: 100%; min-width: 0; }
+    button, input, select { max-width: 100%; min-width: 0; }
+    #marketChart { min-width: 0; max-width: 100%; }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col justify-between antialiased">
+
+  <!-- HEADER NAVBAR -->
+  <header class="sticky top-0 z-40 bg-dark-bg/80 backdrop-blur-md border-b border-dark-border px-4 lg:px-8 py-3 transition-all">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      
+      <!-- Brand Logo -->
+      <a href="#" class="flex items-center gap-2 group">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center font-extrabold text-dark-bg text-xl shadow-lg shadow-amber-500/20 group-hover:scale-105 transition-transform">
+          N
+        </div>
+        <span class="text-2xl font-black tracking-wider text-white">NOVA<span class="text-amber-400 glow-gold-text">TRADE</span></span>
+      </a>
+
+      <!-- Navigation Links -->
+      <nav class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-400">
+        <a href="#markets" class="hover:text-amber-400 transition-colors flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Live Workspace
+        </a>
+        <a href="#features" class="hover:text-amber-400 transition-colors">Features</a>
+        <a href="#wallet" class="hover:text-amber-400 transition-colors">Wallet</a>
+      </nav>
+
+      <!-- User & Account Actions -->
+      <div class="flex items-center gap-3">
+        <button id="loginOpen" class="px-4 py-2 rounded-lg text-xs md:text-sm font-bold border border-slate-700 hover:border-amber-400/60 text-slate-200 hover:text-white transition-all bg-dark-card/50">
+          Log In
+        </button>
+        <button id="signupOpen" class="px-4 py-2 rounded-lg text-xs md:text-sm font-bold bg-gradient-to-r from-amber-500 to-yellow-400 text-dark-bg hover:brightness-110 shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.02]">
+          Create Account
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <main class="flex-grow">
+    
+    <!-- HERO SECTION WITH LIVE CHART -->
+    <section class="max-w-7xl mx-auto px-4 lg:px-8 pt-8 pb-12" id="markets">
+      
+      <div class="mb-6 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+        <div>
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold tracking-widest uppercase mb-2">
+            <span class="live-dot"></span> Real-time Interactive Terminal
+          </div>
+          <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+            Institutional Grade <span class="bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500 bg-clip-text text-transparent">Live Market Trading</span>
+          </h1>
+        </div>
+
+        <div class="flex items-center gap-4 bg-dark-panel p-3 rounded-xl border border-dark-border text-xs text-slate-400">
+          <div>
+            <span class="block text-slate-500 text-[10px]">TICK RATE</span>
+            <span class="font-mono text-emerald-400 font-bold">1.5s Realtime</span>
+          </div>
+          <div class="h-6 w-px bg-dark-border"></div>
+          <div>
+            <span class="block text-slate-500 text-[10px]">ENGINE</span>
+            <span class="font-mono text-amber-400 font-bold">Nova Tick Engine v4.2</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN TRADING INTERFACE GRID -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- CHART & MARKET PANEL (8 Cols) -->
+        <div class="lg:col-span-8 glass-panel glass-panel-glow rounded-2xl p-4 sm:p-6 flex flex-col justify-between">
+          
+          <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-dark-border/80">
+            <div>
+              <div class="flex items-center gap-3">
+                <h2 class="text-xl sm:text-2xl font-bold text-white tracking-wide font-mono" id="symbolTitle">XAU/USD · Gold</h2>
+                <span id="feedStatus" class="px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+                  <span class="live-dot"></span> LIVE Ticking
+                </span>
+              </div>
+              <div class="flex items-baseline gap-3 mt-1">
+                <span class="text-3xl sm:text-4xl font-extrabold font-mono text-white tracking-tight" id="marketPrice">2,748.50</span>
+                <span class="text-sm font-bold font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" id="marketChange">+1.42%</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3 text-right text-xs">
+              <div class="bg-dark-card/60 p-2 rounded-lg border border-dark-border">
+                <span class="text-slate-500 block text-[10px] uppercase">24h High</span>
+                <span class="font-mono text-white font-bold" id="dayHigh">2,765.10</span>
+              </div>
+              <div class="bg-dark-card/60 p-2 rounded-lg border border-dark-border">
+                <span class="text-slate-500 block text-[10px] uppercase">24h Low</span>
+                <span class="font-mono text-white font-bold" id="dayLow">2,730.00</span>
+              </div>
+              <div class="bg-dark-card/60 p-2 rounded-lg border border-dark-border">
+                <span class="text-slate-500 block text-[10px] uppercase">Spread</span>
+                <span class="font-mono text-amber-400 font-bold" id="spreadPrice">0.25</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chart Controls Toolbar -->
+          <div class="flex flex-wrap items-center justify-between gap-3 py-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <select id="symbolSelect" class="bg-dark-card text-white text-xs font-semibold px-3 py-2 rounded-lg border border-dark-border focus:outline-none focus:border-amber-400 cursor-pointer">
+                <option value="XAUUSD">XAU/USD · Gold</option>
+                <option value="BTCUSD">BTC/USD · Bitcoin</option>
+                <option value="ETHUSD">ETH/USD · Ethereum</option>
+                <option value="EURUSD">EUR/USD · Euro</option>
+                <option value="GBPUSD">GBP/USD · Pound</option>
+                <option value="USDJPY">USD/JPY · Yen</option>
+                <option value="XAGUSD">XAG/USD · Silver</option>
+              </select>
+
+              <div class="flex bg-dark-card rounded-lg p-1 border border-dark-border gap-1 text-xs font-mono" id="timeframeGroup">
+                <button class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all" data-tf="1m">1m</button>
+                <button class="px-2.5 py-1 rounded bg-amber-500/20 text-amber-400 font-bold" data-tf="5m">5m</button>
+                <button class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all" data-tf="15m">15m</button>
+                <button class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all" data-tf="1h">1h</button>
+                <button class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all" data-tf="1d">1d</button>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 bg-dark-card p-1 rounded-lg border border-dark-border text-xs">
+              <button id="candleButton" class="px-3 py-1.5 rounded-md font-bold transition-all bg-amber-500 text-dark-bg shadow-sm">Candles</button>
+              <button id="lineButton" class="px-3 py-1.5 rounded-md font-bold text-slate-400 hover:text-white transition-all">Line</button>
+            </div>
+          </div>
+
+          <!-- CHART CANVAS -->
+          <div class="relative w-full rounded-xl overflow-hidden bg-dark-bg/60 border border-dark-border my-2">
+            <div id="marketChart" class="w-full h-[360px] sm:h-[420px]"></div>
+            <div id="chartMessage" class="absolute bottom-3 left-3 bg-dark-bg/90 backdrop-blur-md px-3 py-1.5 rounded-md border border-dark-border text-[11px] font-mono text-slate-400 shadow-md">
+              Initializing live chart stream...
+            </div>
+          </div>
+
+          <!-- Mini Live Ticker Grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-xs">
+            <div class="bg-dark-card/40 p-2.5 rounded-lg border border-dark-border/60">
+              <span class="text-slate-500 text-[10px] block font-semibold">BID PRICE</span>
+              <strong id="bidPrice" class="font-mono text-emerald-400 font-bold text-sm">2,748.37</strong>
+            </div>
+            <div class="bg-dark-card/40 p-2.5 rounded-lg border border-dark-border/60">
+              <span class="text-slate-500 text-[10px] block font-semibold">ASK PRICE</span>
+              <strong id="askPrice" class="font-mono text-red-400 font-bold text-sm">2,748.63</strong>
+            </div>
+            <div class="bg-dark-card/40 p-2.5 rounded-lg border border-dark-border/60">
+              <span class="text-slate-500 text-[10px] block font-semibold">24H VOLUME</span>
+              <strong id="vol24" class="font-mono text-slate-200 font-bold text-sm">184,920</strong>
+            </div>
+            <div class="bg-dark-card/40 p-2.5 rounded-lg border border-dark-border/60">
+              <span class="text-slate-500 text-[10px] block font-semibold">LAST TICK TIME</span>
+              <strong id="quoteTime" class="font-mono text-amber-400 font-bold text-sm">--:--:--</strong>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ORDER BOOK & EXECUTION SIDEBAR (4 Cols) -->
+        <div class="lg:col-span-4 flex flex-col gap-6" id="orderbook">
+          
+          <div class="glass-panel rounded-2xl p-5 border border-dark-border">
+            <h3 class="text-base font-bold text-white mb-4 flex items-center justify-between">
+              <span>Quick Order Execution</span>
+              <span class="text-xs text-amber-400 font-mono font-normal">Instant Market</span>
+            </h3>
+
+            <div class="grid grid-cols-2 gap-2 mb-4">
+              <button id="buyBtnTab" class="py-2.5 rounded-xl font-bold text-sm bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:brightness-110 transition-all">BUY / LONG</button>
+              <button id="sellBtnTab" class="py-2.5 rounded-xl font-bold text-sm bg-dark-card text-slate-400 hover:text-white border border-dark-border transition-all">SELL / SHORT</button>
+            </div>
+
+            <div class="space-y-4">
+              <div>
+                <div class="flex justify-between text-xs text-slate-400 mb-1">
+                  <span>Order Size</span>
+                  <span class="font-mono text-white">Amount (Lots)</span>
+                </div>
+                <div class="relative">
+                  <input type="number" id="tradeAmount" value="1.00" step="0.1" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 font-mono text-white focus:outline-none focus:border-amber-400 text-sm">
+                  <span class="absolute right-3 top-2.5 text-xs font-bold text-slate-500">LOTS</span>
+                </div>
+              </div>
+
+              <div>
+                <div class="flex justify-between text-xs text-slate-400 mb-1">
+                  <span>Leverage</span>
+                  <span class="font-mono text-amber-400 font-bold" id="leverageVal">1:100</span>
+                </div>
+                <input type="range" id="leverageSlider" min="1" max="500" value="100" class="w-full cursor-pointer">
+              </div>
+
+              <div class="bg-dark-bg/60 p-3 rounded-xl border border-dark-border space-y-2 text-xs font-mono">
+                <div class="flex justify-between text-slate-400">
+                  <span>Margin Required:</span>
+                  <span id="marginReq" class="text-white font-bold">$274.85</span>
+                </div>
+              </div>
+
+              <button id="executeTradeBtn" class="w-full py-3 rounded-xl font-extrabold text-sm bg-gradient-to-r from-emerald-500 to-teal-400 text-dark-bg shadow-xl shadow-emerald-500/20 hover:brightness-110 active:scale-[0.98] transition-all uppercase tracking-wider">
+                Place Buy Order
+              </button>
+            </div>
+          </div>
+
+          <!-- REAL-TIME ORDER BOOK -->
+          <div class="glass-panel rounded-2xl p-5 border border-dark-border flex-grow flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-bold text-white">Live Order Book</h3>
+                <span class="text-[11px] font-mono text-slate-500">Depth 5</span>
+              </div>
+              <div class="space-y-1 font-mono text-xs" id="orderBookAsks"></div>
+              <div class="my-2 py-1.5 px-3 bg-dark-bg/80 rounded border border-dark-border flex justify-between items-center">
+                <span class="text-slate-400 text-[10px]">CURRENT PRICE</span>
+                <span id="bookCurrentPrice" class="font-mono font-bold text-emerald-400 text-sm">2,748.50</span>
+              </div>
+              <div class="space-y-1 font-mono text-xs" id="orderBookBids"></div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- FEATURES -->
+    <section class="max-w-7xl mx-auto px-4 lg:px-8 py-12 border-t border-dark-border/50" id="features">
+      <h2 class="text-2xl font-bold text-white mb-2">Next-Gen Workspace Features</h2>
+      <p class="text-slate-400 text-sm mb-8">Designed for high-frequency traders and financial precision.</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="glass-panel p-6 rounded-2xl border border-dark-border">
+          <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xl mb-4">01</div>
+          <h3 class="text-lg font-bold text-white mb-2">Sub-Millisecond Ticks</h3>
+          <p class="text-slate-400 text-xs leading-relaxed">Continuous animated chart engine rendering smooth candlestick dynamics.</p>
+        </div>
+        <div class="glass-panel p-6 rounded-2xl border border-dark-border">
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xl mb-4">02</div>
+          <h3 class="text-lg font-bold text-white mb-2">Hybrid Feed Technology</h3>
+          <p class="text-slate-400 text-xs leading-relaxed">Seamless switching between WebSocket and simulation feeds.</p>
+        </div>
+        <div class="glass-panel p-6 rounded-2xl border border-dark-border">
+          <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xl mb-4">03</div>
+          <h3 class="text-lg font-bold text-white mb-2">Secure Capital Ledger</h3>
+          <p class="text-slate-400 text-xs leading-relaxed">Static QR code crypto gateway with admin approval protection.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- WALLET -->
+    <section class="max-w-7xl mx-auto px-4 lg:px-8 py-12 border-t border-dark-border/50" id="wallet">
+      <h2 class="text-2xl font-bold text-white mb-2">Wallet & Capital Operations</h2>
+      <p class="text-slate-400 text-sm mb-6">Manage your equity or request capital deposit channels.</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="glass-panel p-6 rounded-2xl border border-dark-border flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-bold text-white">Deposit Capital</h3>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">USDT TRC-20</span>
+            </div>
+            <p class="text-slate-400 text-xs mb-6">Instant deposit via static QR Code & Wallet Address.</p>
+          </div>
+          <button id="depositOpen" class="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-yellow-400 text-dark-bg shadow-lg shadow-amber-500/20 hover:brightness-110 transition-all">
+            Deposit Funds Now
+          </button>
+        </div>
+
+        <div class="glass-panel p-6 rounded-2xl border border-dark-border flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-bold text-white">Withdraw Profits</h3>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">Fast Processing</span>
+            </div>
+            <p class="text-slate-400 text-xs mb-6">Automated ledger processing for verified trading accounts.</p>
+          </div>
+          <button id="withdrawOpen" class="w-full py-3 rounded-xl font-bold text-sm bg-dark-card border border-dark-border text-slate-200 hover:text-white hover:border-amber-400/50 transition-all">
+            Request Payout
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-dark-border py-8 px-4 lg:px-8 bg-dark-bg text-slate-500 text-xs">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="font-bold text-white">NOVA<span class="text-amber-400">TRADE</span></span>
+        <span>© 2026 NovaTrade Systems Inc. All rights reserved.</span>
+      </div>
+      <div class="flex items-center gap-6 text-slate-400">
+        <a href="#" class="hover:text-amber-400 transition-colors">Risk Warning</a>
+        <a href="#" class="hover:text-amber-400 transition-colors">Privacy Policy</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ACCOUNT MODAL (LOG IN / SIGN UP) -->
+  <div id="accountModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="glass-panel max-w-md w-full rounded-2xl p-6 sm:p-8 relative border border-dark-border shadow-2xl">
+      <button id="closeAccount" class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+      
+      <h2 id="modalTitle" class="text-2xl font-bold text-white mb-1">Create Your Account</h2>
+      <p id="modalDesc" class="text-xs text-slate-400 mb-6">Access institutional market feeds and start trading.</p>
+
+      <form id="accountForm" class="space-y-4">
+        <div id="nameField">
+          <label for="fullName" class="block text-xs font-semibold text-slate-300 mb-1">Full Name</label>
+          <input type="text" id="fullName" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
+        </div>
+
+        <div>
+          <label for="email" class="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
+          <input type="email" id="email" required class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
+        </div>
+
+        <div>
+          <label for="password" class="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+          <input type="password" id="password" required minlength="6" class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400">
+        </div>
+
+        <button type="submit" id="submitAccount" class="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-yellow-400 text-dark-bg shadow-lg shadow-amber-500/20 hover:brightness-110 transition-all mt-2">
+          Create Free Account
+        </button>
+
+        <div id="accountMessage" class="text-xs text-center mt-2"></div>
+      </form>
+
+      <p class="text-xs text-center text-slate-400 mt-6">
+        <span id="switchLabel">Already registered?</span>
+        <button id="switchMode" type="button" class="text-amber-400 font-bold hover:underline ml-1">Log In</button>
+      </p>
+    </div>
+  </div>
+
+  <!-- STATIC PAYMENT / DEPOSIT MODAL (EXACT MATCH TO YOUR IMAGE) -->
+  <div id="paymentModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="glass-panel max-w-md w-full rounded-2xl p-6 sm:p-8 relative border border-dark-border shadow-2xl text-center">
+      <button id="closePayment" type="button" class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+
+      <!-- Top Bar Timer -->
+      <div class="flex justify-between items-center mb-4 text-xs text-slate-400 font-mono">
+        <span>⏳ Awaiting Payment...</span>
+        <span class="bg-dark-card px-2 py-1 rounded text-amber-400 font-bold">00:29:17</span>
+      </div>
+
+      <!-- Brand & Amount Header -->
+      <div class="flex justify-between items-center mb-5 text-left font-mono">
+        <span class="font-bold text-white text-base">NovaTrade</span>
+        <span class="font-bold text-amber-400 text-base">50.00 USDT_TRX</span>
+      </div>
+
+      <!-- QR Code Box -->
+      <div class="bg-white p-3 inline-block rounded-xl mb-4 shadow-lg">
+        <!-- Yahan apne QR code ki image ka path ya link lagayein -->
+        <img src="qr.png" alt="QR Code" style="width: 170px; height: 170px; display: block;" />
+      </div>
+
+      <!-- Instruction Text -->
+      <p class="text-xs text-slate-400 mb-4 leading-relaxed">
+        To complete your payment, please send <strong class="text-white">50 USDT_TRX</strong> to the address below:
+      </p>
+
+      <!-- Wallet Address Box -->
+      <div id="wallet-address-text" class="bg-dark-bg p-3 rounded-lg border border-dark-border text-slate-200 font-mono text-xs break-all mb-3 select-all">
+  TLLBvQU5CpNKascJid1uEmPLzxJ2oC49Lu
+</div>
+
+      <!-- Network Badge -->
+      <div class="mb-5">
+        <span class="inline-block bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold font-mono">
+          💎 TRC-20
+        </span>
+      </div>
+
+      <!-- Copy Button -->
+      <div>
+        <button onclick="copyWalletAddress()" class="w-full py-3 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-500 transition-all flex items-center justify-center gap-2 shadow-lg">
+          📋 Copy wallet address
+        </button>
+      </div>
+
+      <!-- Success Notification -->
+      <p id="copy-alert" class="text-xs text-emerald-400 mt-2 font-bold" style="display: none;">✅ Address copied successfully!</p>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    (() => {
+      "use strict";
+
+      const $ = (id) => document.getElementById(id);
+
+      const symbolsData = {
+        XAUUSD: { name: "Gold / US Dollar", basePrice: 2748.50, decimals: 2, spread: 0.25, volatility: 0.4 },
+        BTCUSD: { name: "Bitcoin / US Dollar", basePrice: 68450.00, decimals: 2, spread: 5.00, volatility: 18.0 },
+        ETHUSD: { name: "Ethereum / US Dollar", basePrice: 3520.00, decimals: 2, spread: 0.80, volatility: 1.5 },
+        EURUSD: { name: "Euro / US Dollar", basePrice: 1.0850, decimals: 4, spread: 0.0002, volatility: 0.0004 },
+        GBPUSD: { name: "Pound / US Dollar", basePrice: 1.2960, decimals: 4, spread: 0.0003, volatility: 0.0005 },
+        USDJPY: { name: "US Dollar / Yen", basePrice: 152.30, decimals: 2, spread: 0.02, volatility: 0.08 },
+        XAGUSD: { name: "Silver / US Dollar", basePrice: 33.70, decimals: 2, spread: 0.04, volatility: 0.05 }
+      };
+
+      let currentSymbolKey = "XAUUSD";
+      let currentAsset = symbolsData[currentSymbolKey];
+      let currentPrice = currentAsset.basePrice;
+      let dayOpenPrice = currentAsset.basePrice * 0.9858;
+      let dayHighPrice = currentPrice + (currentAsset.volatility * 10);
+      let dayLowPrice = currentPrice - (currentAsset.volatility * 8);
+
+      let chart = null;
+      let candleSeries = null;
+      let lineSeries = null;
+      let chartMode = "candles";
+      let candleHistory = [];
+      let currentCandle = null;
+      let liveTickTimer = null;
+      let tradeDirection = "BUY";
+
+      function formatPrice(val, decimals = currentAsset.decimals) {
+        if (typeof val !== "number" || !Number.isFinite(val)) return "—";
+        return val.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+      }
+
+      function initChart() {
+        const container = $("marketChart");
+        if (!container) return;
+
+        chart = LightweightCharts.createChart(container, {
+          width: container.clientWidth,
+          height: container.clientHeight,
+          layout: { background: { color: "transparent" }, textColor: "#94a3b8", fontFamily: '"JetBrains Mono", monospace', fontSize: 11 },
+          grid: { vertLines: { color: "rgba(30, 41, 59, 0.4)" }, horzLines: { color: "rgba(30, 41, 59, 0.4)" } },
+          rightPriceScale: { borderColor: "rgba(30, 41, 59, 0.8)", scaleMargins: { top: 0.1, bottom: 0.1 } },
+          timeScale: { borderColor: "rgba(30, 41, 59, 0.8)", timeVisible: true, secondsVisible: false }
+        });
+
+        candleSeries = chart.addCandlestickSeries({
+          upColor: "#10b981", downColor: "#ef4444", borderUpColor: "#10b981", borderDownColor: "#ef4444", wickUpColor: "#10b981", wickDownColor: "#ef4444"
+        });
+
+        lineSeries = chart.addLineSeries({ color: "#f59e0b", lineWidth: 2 });
+        lineSeries.applyOptions({ visible: false });
+
+        new ResizeObserver(() => {
+          if (chart && container.clientWidth > 0) {
+            chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+          }
+        }).observe(container);
+
+        generateHistoricalData();
+        startLiveTicking();
+      }
+
+      function generateHistoricalData() {
+        candleHistory = [];
+        const now = Math.floor(Date.now() / 1000);
+        let price = currentAsset.basePrice;
+        let startTime = now - (120 * 60);
+
+        for (let i = 0; i < 120; i++) {
+          const time = startTime + (i * 60);
+          const change = (Math.random() - 0.49) * currentAsset.volatility;
+          const open = price;
+          const close = open + change;
+          const high = Math.max(open, close) + (Math.random() * currentAsset.volatility * 0.5);
+          const low = Math.min(open, close) - (Math.random() * currentAsset.volatility * 0.5);
+          candleHistory.push({ time, open, high, low, close });
+          price = close;
+        }
+
+        currentPrice = price;
+        const lastBar = candleHistory[candleHistory.length - 1];
+        currentCandle = { ...lastBar, time: lastBar.time + 60 };
+
+        candleSeries.setData(candleHistory);
+        lineSeries.setData(candleHistory.map(c => ({ time: c.time, value: c.close })));
+        chart.timeScale().fitContent();
+        updateMarketDisplay(0);
+        
+        const chartMessage = $("chartMessage");
+        if (chartMessage) {
+          chartMessage.innerHTML = '<span class="text-emerald-400 font-bold">● Live Stream Connected</span>';
+        }
+      }
+
+      function startLiveTicking() {
+        if (liveTickTimer) clearInterval(liveTickTimer);
+        liveTickTimer = setInterval(() => {
+          simulateTick();
+        }, 1500);
+      }
+
+      function simulateTick() {
+        if (!currentCandle) return;
+        const delta = (Math.random() - 0.485) * (currentAsset.volatility * 0.35);
+        const prevPrice = currentPrice;
+        currentPrice += delta;
+        if (currentPrice < 0.01) currentPrice = 0.01;
+
+        const now = Math.floor(Date.now() / 1000);
+        if (now - currentCandle.time >= 60) {
+          candleHistory.push({ ...currentCandle });
+          if (candleHistory.length > 200) candleHistory.shift();
+          currentCandle = { time: currentCandle.time + 60, open: currentPrice, high: currentPrice, low: currentPrice, close: currentPrice };
+        } else {
+          currentCandle.close = currentPrice;
+          if (currentPrice > currentCandle.high) currentCandle.high = currentPrice;
+          if (currentPrice < currentCandle.low) currentCandle.low = currentPrice;
+        }
+
+        if (currentPrice > dayHighPrice) dayHighPrice = currentPrice;
+        if (currentPrice < dayLowPrice) dayLowPrice = currentPrice;
+
+        if (chartMode === "candles") candleSeries.update(currentCandle);
+        else lineSeries.update({ time: currentCandle.time, value: currentCandle.close });
+
+        updateMarketDisplay(currentPrice >= prevPrice ? 1 : -1);
+      }
+
+      function updateMarketDisplay(direction) {
+        const decimals = currentAsset.decimals;
+        const formattedPrice = formatPrice(currentPrice, decimals);
+        const bid = currentPrice - (currentAsset.spread / 2);
+        const ask = currentPrice + (currentAsset.spread / 2);
+
+        const priceEl = $("marketPrice");
+        if (priceEl) {
+          priceEl.textContent = formattedPrice;
+          priceEl.classList.remove("flash-up", "flash-down");
+          void priceEl.offsetWidth;
+          if (direction > 0) priceEl.classList.add("flash-up");
+          else if (direction < 0) priceEl.classList.add("flash-down");
+        }
+
+        if ($("bidPrice")) $("bidPrice").textContent = formatPrice(bid, decimals);
+        if ($("askPrice")) $("askPrice").textContent = formatPrice(ask, decimals);
+        if ($("dayHigh")) $("dayHigh").textContent = formatPrice(dayHighPrice, decimals);
+        if ($("dayLow")) $("dayLow").textContent = formatPrice(dayLowPrice, decimals);
+        if ($("spreadPrice")) $("spreadPrice").textContent = formatPrice(currentAsset.spread, decimals);
+        if ($("bookCurrentPrice")) $("bookCurrentPrice").textContent = formattedPrice;
+        if ($("quoteTime")) $("quoteTime").textContent = new Date().toTimeString().split(" ")[0];
+
+        const changeVal = ((currentPrice - dayOpenPrice) / dayOpenPrice) * 100;
+        const changeEl = $("marketChange");
+        if (changeEl) {
+          const sign = changeVal >= 0 ? "+" : "";
+          changeEl.textContent = `${sign}${changeVal.toFixed(2)}%`;
+          changeEl.className = changeVal >= 0 
+            ? "text-sm font-bold font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+            : "text-sm font-bold font-mono px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20";
+        }
+
+        updateOrderBook(bid, ask);
+        updateMarginRequirement();
+      }
+
+      function updateOrderBook(bid, ask) {
+        const asksContainer = $("orderBookAsks");
+        const bidsContainer = $("orderBookBids");
+        if (!asksContainer || !bidsContainer) return;
+
+        let asksHtml = "", bidsHtml = "";
+        const decimals = currentAsset.decimals;
+        const step = currentAsset.spread * 0.8;
+
+        for (let i = 5; i >= 1; i--) {
+          const askPrice = ask + (i * step);
+          asksHtml += `<div class="flex justify-between items-center text-red-400 px-1 py-0.5 rounded"><span>${formatPrice(askPrice, decimals)}</span><span class="text-slate-400 font-mono">${(Math.random() * 4 + 0.5).toFixed(2)}</span></div>`;
+        }
+        for (let i = 1; i <= 5; i++) {
+          const bidPrice = bid - (i * step);
+          bidsHtml += `<div class="flex justify-between items-center text-emerald-400 px-1 py-0.5 rounded"><span>${formatPrice(bidPrice, decimals)}</span><span class="text-slate-400 font-mono">${(Math.random() * 4 + 0.5).toFixed(2)}</span></div>`;
+        }
+        asksContainer.innerHTML = asksHtml;
+        bidsContainer.innerHTML = bidsHtml;
+      }
+
+      // UI Events
+      if ($("symbolSelect")) {
+        $("symbolSelect").addEventListener("change", (e) => {
+          const key = e.target.value;
+          if (symbolsData[key]) {
+            currentSymbolKey = key;
+            currentAsset = symbolsData[key];
+            currentPrice = currentAsset.basePrice;
+            dayOpenPrice = currentPrice * 0.9858;
+            dayHighPrice = currentPrice + (currentAsset.volatility * 10);
+            dayLowPrice = currentPrice - (currentAsset.volatility * 8);
+            if ($("symbolTitle")) $("symbolTitle").textContent = `${key.slice(0,3)}/${key.slice(3)} · ${currentAsset.name.split("/")[0].trim()}`;
+            generateHistoricalData();
+          }
+        });
+      }
+
+      if ($("candleButton") && $("lineButton")) {
+        $("candleButton").addEventListener("click", () => {
+          chartMode = "candles";
+          candleSeries.applyOptions({ visible: true });
+          lineSeries.applyOptions({ visible: false });
+          $("candleButton").className = "px-3 py-1.5 rounded-md font-bold transition-all bg-amber-500 text-dark-bg shadow-sm";
+          $("lineButton").className = "px-3 py-1.5 rounded-md font-bold text-slate-400 hover:text-white transition-all";
+        });
+        $("lineButton").addEventListener("click", () => {
+          chartMode = "line";
+          candleSeries.applyOptions({ visible: false });
+          lineSeries.applyOptions({ visible: true });
+          $("lineButton").className = "px-3 py-1.5 rounded-md font-bold transition-all bg-amber-500 text-dark-bg shadow-sm";
+          $("candleButton").className = "px-3 py-1.5 rounded-md font-bold text-slate-400 hover:text-white transition-all";
+        });
+      }
+
+      if ($("buyBtnTab") && $("sellBtnTab")) {
+        $("buyBtnTab").addEventListener("click", () => {
+          tradeDirection = "BUY";
+          $("buyBtnTab").className = "py-2.5 rounded-xl font-bold text-sm bg-emerald-500 text-white shadow-lg shadow-emerald-500/20";
+          $("sellBtnTab").className = "py-2.5 rounded-xl font-bold text-sm bg-dark-card text-slate-400 border border-dark-border";
+          $("executeTradeBtn").textContent = "Place Buy Order";
+        });
+        $("sellBtnTab").addEventListener("click", () => {
+          tradeDirection = "SELL";
+          $("sellBtnTab").className = "py-2.5 rounded-xl font-bold text-sm bg-red-500 text-white shadow-lg shadow-red-500/20";
+          $("buyBtnTab").className = "py-2.5 rounded-xl font-bold text-sm bg-dark-card text-slate-400 border border-dark-border";
+          $("executeTradeBtn").textContent = "Place Sell Order";
+        });
+      }
+
+      function updateMarginRequirement() {
+        if (!$("leverageSlider") || !$("tradeAmount") || !$("marginReq")) return;
+        const lots = parseFloat($("tradeAmount").value) || 1;
+        const leverage = parseInt($("leverageSlider").value) || 100;
+        if ($("leverageVal")) $("leverageVal").textContent = `1:${leverage}`;
+        const notional = lots * 100000 * (currentPrice / 1000);
+        $("marginReq").textContent = `$${(notional / leverage).toFixed(2)}`;
+      }
+
+      if ($("leverageSlider")) $("leverageSlider").addEventListener("input", updateMarginRequirement);
+      if ($("tradeAmount")) $("tradeAmount").addEventListener("input", updateMarginRequirement);
+
+      if ($("executeTradeBtn")) {
+        $("executeTradeBtn").addEventListener("click", () => {
+          const currentUser = JSON.parse(localStorage.getItem("nova_current_user") || "null");
+          if (!currentUser) {
+            alert("Please log in or create an account to execute live trades.");
+            openAuthModal("signup");
+            return;
+          }
+          alert(`Successfully executed ${tradeDirection} order for ${$("tradeAmount").value} lots at ${formatPrice(currentPrice)}!`);
+        });
+      }
+
+      // Auth & LocalStorage
+      let authMode = "signup";
+      const accountModal = $("accountModal");
+
+      function openAuthModal(mode) {
+        authMode = mode;
+        accountModal.classList.remove("hidden");
+        accountModal.classList.add("flex");
+        if (authMode === "login") {
+          $("modalTitle").textContent = "Welcome Back";
+          $("modalDesc").textContent = "Log in to access your trading account and funds.";
+          $("submitAccount").textContent = "Log In to Account";
+          $("nameField").classList.add("hidden");
+          $("switchLabel").textContent = "Don't have an account?";
+          $("switchMode").textContent = "Create Free Account";
+          $("fullName").removeAttribute("required");
+        } else {
+          $("modalTitle").textContent = "Create Your Account";
+          $("modalDesc").textContent = "Access institutional market feeds and start trading.";
+          $("submitAccount").textContent = "Create Free Account";
+          $("nameField").classList.remove("hidden");
+          $("switchLabel").textContent = "Already registered?";
+          $("switchMode").textContent = "Log In";
+          $("fullName").setAttribute("required", "true");
+        }
+        $("accountMessage").textContent = "";
+      }
+
+      if ($("loginOpen")) $("loginOpen").addEventListener("click", () => openAuthModal("login"));
+      if ($("signupOpen")) $("signupOpen").addEventListener("click", () => openAuthModal("signup"));
+      if ($("closeAccount")) $("closeAccount").addEventListener("click", () => { accountModal.classList.remove("flex"); accountModal.classList.add("hidden"); });
+      if ($("switchMode")) $("switchMode").addEventListener("click", () => openAuthModal(authMode === "signup" ? "login" : "signup"));
+
+      if ($("accountForm")) {
+        $("accountForm").addEventListener("submit", (e) => {
+          e.preventDefault();
+          const email = $("email").value.trim().toLowerCase();
+          const password = $("password").value;
+          const fullName = $("fullName") ? $("fullName").value.trim() : "";
+          let users = JSON.parse(localStorage.getItem("nova_users") || "[]");
+
+          if (authMode === "signup") {
+            if (users.find(u => u.email === email)) {
+              $("accountMessage").className = "text-xs text-center mt-2 text-red-400 font-bold";
+              $("accountMessage").textContent = "Email already registered. Please log in.";
+              return;
+            }
+            const newUser = { fullName: fullName || "Trader", email, password, balance: 0.00, approved: false };
+            users.push(newUser);
+            localStorage.setItem("nova_users", JSON.stringify(users));
+            localStorage.setItem("nova_current_user", JSON.stringify(newUser));
+            $("accountMessage").className = "text-xs text-center mt-2 text-emerald-400 font-bold";
+            $("accountMessage").textContent = "Account created successfully!";
+            setTimeout(() => { accountModal.classList.remove("flex"); accountModal.classList.add("hidden"); updateHeaderAuthUI(); }, 800);
+          } else {
+            const user = users.find(u => u.email === email && u.password === password);
+            if (!user) {
+              $("accountMessage").className = "text-xs text-center mt-2 text-red-400 font-bold";
+              $("accountMessage").textContent = "Invalid email or password.";
+              return;
+            }
+            localStorage.setItem("nova_current_user", JSON.stringify(user));
+            $("accountMessage").className = "text-xs text-center mt-2 text-emerald-400 font-bold";
+            $("accountMessage").textContent = "Logged in successfully!";
+            setTimeout(() => { accountModal.classList.remove("flex"); accountModal.classList.add("hidden"); updateHeaderAuthUI(); }, 800);
+          }
+        });
+      }
+
+      function updateHeaderAuthUI() {
+        const currentUser = JSON.parse(localStorage.getItem("nova_current_user") || "null");
+        if (currentUser) {
+          if ($("loginOpen")) {
+            $("loginOpen").textContent = `Bal: $${(currentUser.balance || 0).toFixed(2)}`;
+            $("loginOpen").className = "px-3 py-2 rounded-lg text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30";
+          }
+          if ($("signupOpen")) {
+            $("signupOpen").textContent = "Log Out";
+            $("signupOpen").className = "px-3 py-2 rounded-lg text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/30";
+            $("signupOpen").onclick = (e) => { e.preventDefault(); localStorage.removeItem("nova_current_user"); window.location.reload(); };
+          }
+        }
+      }
+      updateHeaderAuthUI();
+
+      // --- STATIC PAYMENT MODAL LOGIC ---
+      const paymentModal = $("paymentModal");
+
+      if ($("depositOpen")) {
+        $("depositOpen").addEventListener("click", () => {
+          const currentUser = JSON.parse(localStorage.getItem("nova_current_user") || "null");
+          if (!currentUser) {
+            alert("Please create an account or log in before making a deposit.");
+            openAuthModal("signup");
+            return;
+          }
+          paymentModal.classList.remove("hidden");
+          paymentModal.classList.add("flex");
+        });
+      }
+
+      if ($("closePayment")) {
+        $("closePayment").addEventListener("click", () => {
+          paymentModal.classList.remove("flex");
+          paymentModal.classList.add("hidden");
+        });
+      }
+
+      if ($("withdrawOpen")) {
+        $("withdrawOpen").addEventListener("click", () => alert("Withdrawals require verified account approval."));
+      }
+
+      // Copy Wallet Address Global Function
+      window.copyWalletAddress = function() {
+        const addressText = document.getElementById('wallet-address-text').innerText.trim();
+        navigator.clipboard.writeText(addressText).then(() => {
+          const alertBox = document.getElementById('copy-alert');
+          alertBox.style.display = 'block';
+          setTimeout(() => {
+            alertBox.style.display = 'none';
+          }, 2500);
+        });
+      };
+
+      // Admin Panel (Press Ctrl + Shift + A)
+      window.addEventListener("keydown", (e) => {
+        if (e.ctrlKey && e.shiftKey && e.code === "KeyA") {
+          e.preventDefault();
+          openAdminModal();
+        }
+      });
+
+      function openAdminModal() {
+        let adminModal = $("adminModal");
+        if (!adminModal) {
+          adminModal = document.createElement("div");
+          adminModal.id = "adminModal";
+          adminModal.className = "fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4";
+          adminModal.innerHTML = `
+            <div class="glass-panel max-w-2xl w-full rounded-2xl p-6 relative border border-amber-500/40 shadow-2xl max-h-[90vh] overflow-y-auto">
+              <button id="closeAdmin" class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+              <h2 class="text-xl font-bold text-amber-400 mb-1">🛡️ NovaTrade Admin Approval Dashboard</h2>
+              <p class="text-xs text-slate-400 mb-4">Approve pending TRC-20 deposits to credit user accounts.</p>
+              <div class="space-y-3" id="adminDepositList"></div>
+            </div>
+          `;
+          document.body.appendChild(adminModal);
+          $("closeAdmin").addEventListener("click", () => adminModal.remove());
+        }
+        renderAdminList();
+      }
+
+      function renderAdminList() {
+        const listEl = $("adminDepositList");
+        if (!listEl) return;
+        const pending = JSON.parse(localStorage.getItem("nova_pending_deposits") || "[]");
+
+        if (pending.length === 0) {
+          listEl.innerHTML = `<div class="p-6 text-center text-xs text-slate-500 bg-dark-card rounded-xl border border-dark-border">No pending deposits found.</div>`;
+          return;
+        }
+
+        let html = "";
+        pending.forEach((dep, idx) => {
+          html += `
+            <div class="bg-dark-card p-4 rounded-xl border border-dark-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div>
+                <p class="text-white font-bold font-mono">INV — $${dep.amount ? dep.amount.toFixed(2) : '50.00'} USDT</p>
+                <p class="text-slate-400">User Email: <span class="text-amber-400">${dep.email || 'Trader'}</span></p>
+                <p class="text-[10px] text-emerald-400 font-bold uppercase mt-1">Status: PENDING</p>
+              </div>
+              <button onclick="window.approveDeposit(${idx})" class="px-4 py-2 bg-emerald-500 text-dark-bg font-bold rounded-lg hover:brightness-110 shadow-md">
+                Approve & Credit Balance
+              </button>
+            </div>
+          `;
+        });
+        listEl.innerHTML = html;
+      }
+
+      window.approveDeposit = function(index) {
+        let pending = JSON.parse(localStorage.getItem("nova_pending_deposits") || "[]");
+        let users = JSON.parse(localStorage.getItem("nova_users") || "[]");
+        const dep = pending[index];
+
+        let user = users.find(u => u.email === dep.email);
+        if (user) {
+          user.balance = (user.balance || 0) + (dep.amount || 50.00);
+          user.approved = true;
+          localStorage.setItem("nova_users", JSON.stringify(users));
+
+          let currentUser = JSON.parse(localStorage.getItem("nova_current_user") || "null");
+          if (currentUser && currentUser.email === user.email) {
+            currentUser.balance = user.balance;
+            currentUser.approved = true;
+            localStorage.setItem("nova_current_user", JSON.stringify(currentUser));
+          }
+        }
+
+        pending.splice(index, 1);
+        localStorage.setItem("nova_pending_deposits", JSON.stringify(pending));
+
+        alert(`Successfully approved deposit! Account credited.`);
+        renderAdminList();
+        updateHeaderAuthUI();
+      };
+
+      window.addEventListener("DOMContentLoaded", () => {
+        initChart();
+      });
+
+    })();
+  </script>
+</body>
+</html>

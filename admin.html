@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovaTrade - Luxury Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gold-glow {
+            text-shadow: 0 0 15px rgba(234, 179, 8, 0.4);
+        }
+        .gold-border {
+            border-color: rgba(234, 179, 8, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-black text-amber-50 min-h-screen flex flex-col justify-center items-center">
+
+    <!-- PASSWORD LOGIN BOX -->
+    <div id="loginBox" class="bg-zinc-900 p-8 rounded-2xl shadow-2xl w-96 border gold-border text-center">
+        <h2 class="text-xl font-bold mb-2 text-amber-400 tracking-wider">RESTRICTED ACCESS</h2>
+        <p class="text-xs text-zinc-400 mb-6 uppercase tracking-widest">CEO Control Center</p>
+        <input type="password" id="adminPin" placeholder="Enter PIN..." class="w-full bg-black border gold-border rounded-lg px-4 py-3 text-center text-lg mb-4 text-amber-300 focus:outline-none focus:border-amber-400 tracking-widest">
+        <button onclick="verifyPin()" class="w-full bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-500 hover:to-yellow-400 text-black font-bold py-3 rounded-lg transition tracking-wider shadow-lg">UNLOCK PANEL</button>
+        <p id="errorMsg" class="text-red-500 text-xs mt-3 hidden font-semibold">Incorrect PIN! Access denied.</p>
+    </div>
+
+    <!-- MAIN ADMIN DASHBOARD (HIDDEN UNTIL UNLOCKED) -->
+    <div id="adminDashboard" class="hidden container mx-auto px-4 py-8 w-full max-w-5xl">
+        <!-- Luxury Header -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8 bg-zinc-900 p-6 rounded-2xl shadow-2xl border gold-border gap-4">
+            <div>
+                <h1 class="text-2xl font-extrabold text-amber-400 tracking-widest gold-glow">CEO OF NOVA TRADE AHAD</h1>
+                <p class="text-xs text-zinc-400 tracking-widest uppercase mt-1">Exclusive Executive Command Center</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-xs text-zinc-400 bg-black px-3 py-1.5 rounded-full border border-zinc-800">Status: <span class="text-emerald-400 font-bold">SECURE LIVE</span></span>
+                <button onclick="lockAdmin()" class="bg-red-950/80 hover:bg-red-900 text-red-200 border border-red-800 px-4 py-2 rounded-xl text-xs font-semibold transition">LOCK PANEL</button>
+                <a href="/" class="bg-gradient-to-r from-amber-600 to-yellow-500 hover:from-amber-500 hover:to-yellow-400 text-black font-bold px-4 py-2 rounded-xl text-xs transition shadow-md">BACK TO SITE</a>
+            </div>
+        </header>
+
+        <!-- Deposits Table Card -->
+        <div class="bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden border gold-border">
+            <div class="px-6 py-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/50">
+                <h2 class="font-bold text-lg text-amber-300 tracking-wide">Live Crypto Deposits</h2>
+                <button onclick="loadDeposits()" class="bg-amber-500 hover:bg-amber-400 text-black font-bold px-4 py-2 rounded-xl text-xs transition shadow">Refresh Data</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-black/60 text-amber-400/70 text-xs uppercase tracking-widest border-b border-zinc-800">
+                            <th class="px-6 py-4">Order Number</th>
+                            <th class="px-6 py-4">Amount</th>
+                            <th class="px-6 py-4">Currency</th>
+                            <th class="px-6 py-4">Invoice Link</th>
+                            <th class="px-6 py-4">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="depositsTable" class="divide-y divide-zinc-800 text-sm">
+                        <tr>
+                            <td colspan="5" class="px-6 py-6 text-center text-zinc-500">Loading secure logs...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        if (sessionStorage.getItem('admin_authenticated') === 'true') {
+            showDashboard();
+        }
+
+        function verifyPin() {
+            const enteredPin = document.getElementById('adminPin').value;
+            if (enteredPin === '454648') {
+                sessionStorage.setItem('admin_authenticated', 'true');
+                showDashboard();
+            } else {
+                const err = document.getElementById('errorMsg');
+                err.classList.remove('hidden');
+                document.getElementById('adminPin').value = '';
+            }
+        }
+
+        function showDashboard() {
+            document.getElementById('loginBox').classList.add('hidden');
+            document.getElementById('adminDashboard').classList.remove('hidden');
+            loadDeposits();
+        }
+
+        function lockAdmin() {
+            sessionStorage.removeItem('admin_authenticated');
+            document.getElementById('adminDashboard').classList.add('hidden');
+            document.getElementById('loginBox').classList.remove('hidden');
+            document.getElementById('adminPin').value = '';
+        }
+
+        async function loadDeposits() {
+            try {
+                const res = await fetch('/api/admin/deposits');
+                const data = await res.json();
+                const tbody = document.getElementById('depositsTable');
+                tbody.innerHTML = '';
+
+                if (data.deposits && data.deposits.length > 0) {
+                    data.deposits.forEach(dep => {
+                        tbody.innerHTML += `
+                            <tr class="hover:bg-zinc-800/50 transition">
+                                <td class="px-6 py-4 font-mono text-xs text-amber-200">${dep.order_number}</td>
+                                <td class="px-6 py-4 font-bold text-amber-400">$${dep.amount}</td>
+                                <td class="px-6 py-4 uppercase text-zinc-300">${dep.asset || 'USDT_TRX'}</td>
+                                <td class="px-6 py-4">
+                                    <a href="${dep.invoice_url}" target="_blank" class="text-amber-400 hover:underline text-xs font-semibold">View Invoice ↗</a>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                                        ${dep.status || 'Pending'}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-4 text-center text-zinc-500">No deposits recorded yet.</td></tr>`;
+                }
+            } catch (err) {
+                console.error('Error fetching deposits:', err);
+                document.getElementById('depositsTable').innerHTML = `<tr><td colspan="5" class="px-6 py-4 text-center text-red-400">Failed to load deposits.</td></tr>`;
+            }
+        }
+    </script>
+</body>
+</html>
